@@ -1,0 +1,155 @@
+line_number,sql_code
+1,-- Create database
+2,CREATE DATABASE zepto_prj;
+3,GO
+4,USE zepto_prj;
+5,GO
+6,
+7,-- Create table
+8,CREATE TABLE dbo.zepto (
+9,"    sku_id INT IDENTITY(1,1) PRIMARY KEY,"
+10,"    category VARCHAR(120),"
+11,"    name VARCHAR(150) NOT NULL,"
+12,"    mrp DECIMAL(18,2),"
+13,"    discountPercent DECIMAL(5,2),"
+14,"    availableQuantity INT,"
+15,"    discountedSellingPrice DECIMAL(18,2),"
+16,"    weightInGms INT,"
+17,"    outOfStock BIT,"
+18,    quantity INT
+19,);
+20,GO
+21,
+22,-- ---------- Data exploration ----------
+23,
+24,-- count of rows
+25,SELECT COUNT(*) AS total_rows
+26,FROM dbo.zepto;
+27,GO
+28,
+29,-- sample data (first 10 rows)
+30,SELECT TOP (10) *
+31,FROM dbo.zepto;
+32,GO
+33,
+34,-- null values (rows where any important column is NULL)
+35,SELECT *
+36,FROM dbo.zepto
+37,WHERE name IS NULL
+38,   OR category IS NULL
+39,   OR mrp IS NULL
+40,   OR discountPercent IS NULL
+41,   OR discountedSellingPrice IS NULL
+42,   OR weightInGms IS NULL
+43,   OR availableQuantity IS NULL
+44,   OR outOfStock IS NULL
+45,   OR quantity IS NULL;
+46,GO
+47,
+48,-- different product categories
+49,SELECT DISTINCT category
+50,FROM dbo.zepto
+51,ORDER BY category;
+52,GO
+53,
+54,-- products in stock vs out of stock
+55,"SELECT outOfStock, COUNT(sku_id) AS cnt"
+56,FROM dbo.zepto
+57,GROUP BY outOfStock;
+58,GO
+59,
+60,-- product names present multiple times
+61,"SELECT name, COUNT(sku_id) AS NumberOfSKUs"
+62,FROM dbo.zepto
+63,GROUP BY name
+64,HAVING COUNT(sku_id) > 1
+65,ORDER BY COUNT(sku_id) DESC;
+66,GO
+67,
+68,-- ---------- Data cleaning ----------
+69,
+70,-- products with price = 0 (mrp or discountedSellingPrice = 0)
+71,SELECT *
+72,FROM dbo.zepto
+73,WHERE mrp = 0 OR discountedSellingPrice = 0;
+74,GO
+75,
+76,-- delete products where mrp = 0
+77,DELETE FROM dbo.zepto
+78,WHERE mrp = 0;
+79,GO
+80,
+81,-- convert paise to rupees (divide by 100.0)
+82,UPDATE dbo.zepto
+83,"SET mrp = CASE WHEN mrp IS NOT NULL THEN mrp / 100.0 ELSE NULL END,"
+84,    discountedSellingPrice = CASE WHEN discountedSellingPrice IS NOT NULL THEN discountedSellingPrice / 100.0 ELSE NULL END;
+85,GO
+86,
+87,"SELECT mrp, discountedSellingPrice"
+88,FROM dbo.zepto;
+89,GO
+90,
+91,-- ---------- Data analysis ----------
+92,
+93,-- Q1. Top 10 best-value products
+94,"SELECT DISTINCT TOP (10) name, mrp, discountPercent"
+95,FROM dbo.zepto
+96,ORDER BY discountPercent DESC;
+97,GO
+98,
+99,-- Q2. High MRP but out of stock
+100,"SELECT DISTINCT name, mrp"
+101,FROM dbo.zepto
+102,WHERE outOfStock = 1 AND mrp > 300
+103,ORDER BY mrp DESC;
+104,GO
+105,
+106,-- Q3. Estimated revenue by category
+107,"SELECT category,"
+108,"       SUM(ISNULL(discountedSellingPrice,0) * ISNULL(availableQuantity,0)) AS total_revenue"
+109,FROM dbo.zepto
+110,GROUP BY category
+111,ORDER BY total_revenue;
+112,GO
+113,
+114,-- Q4. MRP > 500 and discount < 10%
+115,"SELECT DISTINCT name, mrp, discountPercent"
+116,FROM dbo.zepto
+117,WHERE mrp > 500 AND discountPercent < 10
+118,"ORDER BY mrp DESC, discountPercent DESC;"
+119,GO
+120,
+121,-- Q5. Top 5 categories by avg discount
+122,"SELECT TOP (5) category,"
+123,"       ROUND(AVG(CAST(discountPercent AS FLOAT)), 2) AS avg_discount"
+124,FROM dbo.zepto
+125,GROUP BY category
+126,ORDER BY avg_discount DESC;
+127,GO
+128,
+129,-- Q6. Price per gram
+130,"SELECT DISTINCT name, weightInGms, discountedSellingPrice,"
+131,"       ROUND(CASE WHEN weightInGms <> 0 THEN discountedSellingPrice / CAST(weightInGms AS FLOAT) ELSE NULL END, 2) AS price_per_gram"
+132,FROM dbo.zepto
+133,WHERE weightInGms >= 100
+134,ORDER BY price_per_gram;
+135,GO
+136,
+137,-- Q7. Weight category
+138,"SELECT DISTINCT name, weightInGms,"
+139,       CASE
+140,         WHEN weightInGms < 1000 THEN 'Low'
+141,         WHEN weightInGms < 5000 THEN 'Medium'
+142,         ELSE 'Bulk'
+143,       END AS weight_category
+144,FROM dbo.zepto;
+145,GO
+146,
+147,-- Q8. Total weight per category
+148,"SELECT category,"
+149,"       SUM(ISNULL(weightInGms,0) * ISNULL(availableQuantity,0)) AS total_weight"
+150,FROM dbo.zepto
+151,GROUP BY category
+152,ORDER BY total_weight;
+153,GO
+154,
